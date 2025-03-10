@@ -1,67 +1,140 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const board = document.querySelector(".game-board");
-    const restartBtn = document.getElementById("restart");
+document.addEventListener('DOMContentLoaded', () => {
+    const gameBoard = document.querySelector('.game-board');
+    const restartBtn = document.getElementById('restart');
+    const playAgainBtn = document.getElementById('play-again');
+    const movesDisplay = document.getElementById('moves');
+    const timerDisplay = document.getElementById('timer');
+    const winMessage = document.getElementById('win-message');
+    const finalMovesDisplay = document.getElementById('final-moves');
+    const finalTimeDisplay = document.getElementById('final-time');
 
-    let cardsArray = ["A", "B", "C", "D", "E", "F", "G", "H"];
-    let gameCards = [...cardsArray, ...cardsArray]; 
+    const emojis = ['🎮', '🎲', '🎯', '🎨', '🎭', '🎪', '🎢', '🎡'];
+    let cards = [];
     let flippedCards = [];
     let matchedPairs = 0;
+    let moves = 0;
+    let timer = 0;
+    let timerInterval = null;
+    let isProcessing = false;
+
+    function startTimer() {
+        if (timerInterval) return;
+        timerInterval = setInterval(() => {
+            timer++;
+            updateTimer();
+        }, 1000);
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
+    function updateTimer() {
+        const minutes = Math.floor(timer / 60);
+        const seconds = timer % 60;
+        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
 
     function shuffleCards() {
-        gameCards.sort(() => Math.random() - 0.5);
+        const cardPairs = [...emojis, ...emojis];
+        return cardPairs.sort(() => Math.random() - 0.5);
     }
 
-    function createBoard() {
-        board.innerHTML = "";
-        shuffleCards();
-        gameCards.forEach((letter, index) => {
-            const card = document.createElement("div");
-            card.classList.add("card");
-            card.dataset.letter = letter;
-            card.dataset.index = index;
-            card.textContent = "?";
-            card.addEventListener("click", flipCard);
-            board.appendChild(card);
-        });
+    function createCard(emoji, index) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.index = index;
+        
+        card.innerHTML = `
+            <div class="card-front">${emoji}</div>
+            <div class="card-back">?</div>
+        `;
+        
+        card.addEventListener('click', () => flipCard(card));
+        return card;
     }
 
-    function flipCard() {
-        if (flippedCards.length < 2) {
-            this.classList.add("flipped");
-            this.textContent = this.dataset.letter;
-            flippedCards.push(this);
+    function flipCard(card) {
+        if (isProcessing || 
+            flippedCards.length === 2 || 
+            flippedCards.includes(card) ||
+            card.classList.contains('matched')) {
+            return;
         }
 
+        if (flippedCards.length === 0) {
+            startTimer();
+        }
+
+        card.classList.add('flip');
+        flippedCards.push(card);
+
         if (flippedCards.length === 2) {
-            setTimeout(checkMatch, 500);
+            moves++;
+            movesDisplay.textContent = moves;
+            isProcessing = true;
+            checkMatch();
         }
     }
 
     function checkMatch() {
         const [card1, card2] = flippedCards;
+        const match = card1.querySelector('.card-front').textContent === 
+                     card2.querySelector('.card-front').textContent;
 
-        if (card1.dataset.letter === card2.dataset.letter) {
+        if (match) {
+            card1.classList.add('matched');
+            card2.classList.add('matched');
             matchedPairs++;
-            flippedCards = [];
-            if (matchedPairs === cardsArray.length) {
-                setTimeout(() => alert("You won!"), 300);
+            
+            if (matchedPairs === emojis.length) {
+                setTimeout(showWinMessage, 500);
             }
         } else {
             setTimeout(() => {
-                card1.classList.remove("flipped");
-                card2.classList.remove("flipped");
-                card1.textContent = "?";
-                card2.textContent = "?";
-                flippedCards = [];
-            }, 500);
+                card1.classList.remove('flip');
+                card2.classList.remove('flip');
+            }, 1000);
         }
+
+        setTimeout(() => {
+            flippedCards = [];
+            isProcessing = false;
+        }, 1000);
     }
 
-    restartBtn.addEventListener("click", () => {
-        matchedPairs = 0;
-        flippedCards = [];
-        createBoard();
-    });
+    function showWinMessage() {
+        stopTimer();
+        finalMovesDisplay.textContent = moves;
+        finalTimeDisplay.textContent = timerDisplay.textContent;
+        winMessage.classList.remove('hidden');
+    }
 
-    createBoard();
+    function initializeGame() {
+        // Reset game state
+        gameBoard.innerHTML = '';
+        flippedCards = [];
+        matchedPairs = 0;
+        moves = 0;
+        timer = 0;
+        stopTimer();
+        updateTimer();
+        movesDisplay.textContent = moves;
+        winMessage.classList.add('hidden');
+
+        // Create and shuffle cards
+        const shuffledEmojis = shuffleCards();
+        shuffledEmojis.forEach((emoji, index) => {
+            const card = createCard(emoji, index);
+            gameBoard.appendChild(card);
+        });
+    }
+
+    // Event listeners
+    restartBtn.addEventListener('click', initializeGame);
+    playAgainBtn.addEventListener('click', initializeGame);
+
+    // Initialize the game
+    initializeGame();
 });
